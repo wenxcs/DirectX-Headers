@@ -103,7 +103,7 @@ int run_main(IUnknown* adapter)
 {
     ID3D12Device *device = nullptr;
 
-    if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)))) 
+    if (FAILED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)))) 
     {
         return -1;
     }
