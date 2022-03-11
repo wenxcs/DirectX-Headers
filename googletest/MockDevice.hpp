@@ -391,6 +391,7 @@ public: // ID3D12Object
     }
 
 public: // IUnknown
+#ifdef _WIN32
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject) override
@@ -398,6 +399,15 @@ public: // IUnknown
         *ppvObject = this;
         return S_OK;
     }
+#else
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID riid,
+        /* [iid_is][out] */ _COM_Outptr_ void **ppvObject)
+    {
+        *ppvObject = this;
+        return S_OK;
+    }
+#endif
 
     virtual ULONG STDMETHODCALLTYPE AddRef() override 
     {
@@ -502,7 +512,7 @@ public: // IUnknown
             default:
                 return E_INVALIDARG;
             }
-            pRootSig->HighestVersion = min(pRootSig->HighestVersion, m_RootSignatureHighestVersion); 
+            pRootSig->HighestVersion = std::min(pRootSig->HighestVersion, m_RootSignatureHighestVersion); 
         } return S_OK;
         
 
@@ -699,7 +709,7 @@ public: // IUnknown
                 default:
                     return E_INVALIDARG;
                 }
-                pSM->HighestShaderModel = min(pSM->HighestShaderModel,m_HighestSupportedShaderModel);
+                pSM->HighestShaderModel = std::min(pSM->HighestShaderModel,m_HighestSupportedShaderModel);
             } return S_OK;
         case D3D12_FEATURE_SHADER_CACHE:
             {
