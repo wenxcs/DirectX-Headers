@@ -94,12 +94,32 @@ std::cout << "Verification failed: " << #FeatureName << std::endl \
           << "New API: " << NewFeature << std::endl;
 
 
-// -----------------------------------------------------------------------------------------------------------------
-// Main function
-// -----------------------------------------------------------------------------------------------------------------
 using namespace Microsoft::WRL;
 
-int run_main(IUnknown* adapter)
+// To get property value from adapter
+std::vector<char> get_adapter_property(ComPtr<IDXCoreAdapter> adapter, DXCoreAdapterProperty property) {
+    if (adapter->IsPropertySupported(property)) {
+        size_t len;
+        if(FAILED(adapter->GetPropertySize(property, &len)))
+            return {};
+        std::vector<char> buf(len);
+        if(FAILED(adapter->GetProperty(property, len, buf.data()))) return {};
+        return buf;
+    }
+    return {};
+}
+
+// To get driver description for display before test
+std::string get_driver_description(ComPtr<IDXCoreAdapter> adapter) {
+    auto rs = get_adapter_property(adapter, DXCoreAdapterProperty::DriverDescription);
+    std::string name(rs.data());
+    return name;
+}
+
+// -----------------------------------------------------------------------------------------------------------------
+// Run test on a specific device which is created from the adapter
+// -----------------------------------------------------------------------------------------------------------------
+int run_per_adapter(IUnknown* adapter)
 {
     ID3D12Device *device = nullptr;
 
@@ -636,47 +656,33 @@ int run_main(IUnknown* adapter)
     return 0;
 }
 
-// Helper utility converts D3D API failures into exceptions.
-inline void ThrowIfFailed(HRESULT hr) noexcept(false) {
-    if (FAILED(hr)) {
-        throw std::runtime_error("");
-    }
-}
-
-std::vector<char> get_property(ComPtr<IDXCoreAdapter> _adapter, DXCoreAdapterProperty property) {
-    if (_adapter->IsPropertySupported(property)) {
-        size_t len;
-        ThrowIfFailed(_adapter->GetPropertySize(property, &len));
-        std::vector<char> buf(len);
-        ThrowIfFailed(_adapter->GetProperty(property, len, buf.data()));
-        return buf;
-    }
-    return {};
-}
-
-std::string get_driver_description(ComPtr<IDXCoreAdapter> _adapter) {
-    auto rs = get_property(_adapter, DXCoreAdapterProperty::DriverDescription);
-    std::string name(rs.data());
-    return name;
-}
-
 int main()
 {
-    ComPtr<IDXCoreAdapterFactory> d3d_adapter_factory;
-    ComPtr<IDXCoreAdapterList> d3d_adapter_list;
+    ComPtr<IDXCoreAdapterFactory> adapter_factory;
+    ComPtr<IDXCoreAdapterList> adapter_list;
     GUID dx_must_attr[1]{ DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
-    bool dx_must_hardware{ true };
-    ThrowIfFailed(DXCoreCreateAdapterFactory(IID_PPV_ARGS(&d3d_adapter_factory)));
-    ThrowIfFailed(d3d_adapter_factory->CreateAdapterList(_countof(dx_must_attr), dx_must_attr,
-        IID_PPV_ARGS(&d3d_adapter_list)));
-    const uint32_t count{ d3d_adapter_list->GetAdapterCount() };
+
+    if(FAILED(DXCoreCreateAdapterFactory(IID_PPV_ARGS(&adapter_factory))))
+        return -1;
+
+    if(FAILED(adapter_factory->CreateAdapterList(_countof(dx_must_attr), dx_must_attr,
+        IID_PPV_ARGS(&adapter_list))))
+        return -1;
 
     // Generate all devices object;
-    for (uint32_t i = 0; i < count; i++) {
-        ComPtr<IDXCoreAdapter> d3d_adapter;
-        ThrowIfFailed(d3d_adapter_list->GetAdapter(i, IID_PPV_ARGS(&d3d_adapter)));
-        std::cout << "--------------- Device: " << get_driver_description(d3d_adapter) <<" ---------------" << std::endl;
-        ThrowIfFailed(run_main(d3d_adapter.Get()));
+    for (uint32_t i = 0; i < adapter_list->GetAdapterCount(); i++) {
+
+        ComPtr<IDXCoreAdapter> adapter;
+        if(FAILED(adapter_list->GetAdapter(i, IID_PPV_ARGS(&adapter))))
+            return -1;
+
+        std::string driver_desc_str = get_driver_description(adapter);
+        if(driver_desc_str.empty())
+            return -1;
+        std::cout << "Test on device driver: " << driver_desc_str << std::endl;
+
+        if(FAILED(run_per_adapter(adapter.Get())))
+            return -1;
     }
     return 0;
 }

@@ -4,6 +4,10 @@
 #define DIRECTX_HEADERS_MOCK_DEVICE_HPP
 #include <unordered_map>
 
+#ifndef __RPC_FAR
+#define __RPC_FAR
+#endif
+
 #include <directx/d3d12.h>
 #include <directx/dxcore.h>
 #include <directx/d3dx12.h>
@@ -391,7 +395,6 @@ public: // ID3D12Object
     }
 
 public: // IUnknown
-#ifdef _WIN32
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject) override
@@ -399,15 +402,6 @@ public: // IUnknown
         *ppvObject = this;
         return S_OK;
     }
-#else
-    virtual HRESULT STDMETHODCALLTYPE QueryInterface(
-        /* [in] */ REFIID riid,
-        /* [iid_is][out] */ _COM_Outptr_ void **ppvObject)
-    {
-        *ppvObject = this;
-        return S_OK;
-    }
-#endif
 
     virtual ULONG STDMETHODCALLTYPE AddRef() override 
     {
